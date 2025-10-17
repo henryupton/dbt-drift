@@ -1,0 +1,30 @@
+name: 'dbt_drift'
+version: '1.0.0'
+config-version: 2
+
+# This setting configures which "profile" dbt uses for this project.
+profile: 'dbt_drift'
+
+# These configurations specify where dbt should look for different types of files.
+macro-paths: ["macros"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+# Configure vars for resource management
+vars:
+  dbt_drift:
+    # Default behavior for drift detection
+    drift_mode: 'reconcile'
+
+    # Resource configurations
+    resources:
+      udf:
+        calculate_discount:
+          arguments: "price number, discount_pct number"
+          returns: "number"
+          language: "sql"
+          definition: "price * (1 - discount_pct / 100)"
+          comment: "Calculates discounted price"
