@@ -35,3 +35,43 @@ vars:
           language: "sql"
           definition: "convert_timezone('Australia/Melbourne', dt::timestamp_tz)::date"
           comment: "Converts UTC date to Australia/Melbourne date"
+
+      row_access_policy:
+        smoke_rap:
+          signature: "region string"
+          body: |
+            case
+              when current_role() = 'ACCOUNTADMIN' then true
+              else false
+            end
+          comment: "Smoke test row access policy"
+
+      masking_policy:
+        smoke_mask:
+          signature: "val string"
+          returns: "string"
+          body: |
+            case
+              when current_role() = 'ACCOUNTADMIN' then val
+              else '***masked***'
+            end
+          comment: "Smoke test masking policy"
+
+      file_format:
+        smoke_csv:
+          type: csv
+          field_delimiter: "|"
+          skip_header: 1
+          compression: gzip
+          comment: "Smoke test CSV file format"
+
+      stored_procedure:
+        smoke_proc:
+          arguments: "x number"
+          returns: "number"
+          language: "sql"
+          definition: |
+            begin
+              return x + 1;
+            end;
+          comment: "Smoke test stored procedure"

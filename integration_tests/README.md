@@ -1,6 +1,8 @@
 # Integration Tests
 
-This sub-project tests the dbt-drift package functionality against a live warehouse.
+This sub-project tests the dbt-drift package against a live warehouse. It
+configures one resource of every supported type (UDF, row access policy,
+masking policy, file format, stored procedure).
 
 ## Setup
 
@@ -9,31 +11,41 @@ cd integration_tests
 dbt deps
 ```
 
-This project sets `reconcile_drift: true`, so `dbt_drift.run()` runs on
-`on-run-start` and reconciles the configured UDFs on every invocation.
+You need a `profiles.yml` with a profile named `integration_tests` pointing at a
+Snowflake account and a schema you're happy to have objects created in and
+dropped from. Nothing here touches your production objects: dbt-drift only ever
+deletes objects carrying its own managed marker.
 
-## Running Tests
+## Smoke test
+
+The one-shot end-to-end check. It creates every configured resource, verifies
+each matches, asserts a clean re-plan reports zero drift, proves orphan
+deletion drops a managed object removed from config (and only that one), then
+cleans up. It raises on the first failure.
+
+```bash
+dbt run-operation smoke_test
+```
+
+This is the fastest way to shake out warehouse-specific assumptions (e.g. the
+`SHOW`/`DESCRIBE` column casing). If it fails partway, clean up with:
+
+```bash
+dbt run-operation delete_test_resources
+```
+
+## Individual operations
 
 ```bash
 # Show drift without changing anything
 dbt run-operation dbt_drift.run --vars '{dbt_drift: {reconcile_drift: false}}'
 
-# Reconcile the warehouse to match config (create/update/delete)
+# Reconcile the warehouse to match config (create / update / delete)
 dbt run-operation dbt_drift.run --vars '{dbt_drift: {reconcile_drift: true}}'
 
 # Assert every configured resource exists and matches config (raises on drift)
 dbt run-operation verify_resources
-```
 
-## Test Resources
-
-Defined in `dbt_project.yml`:
-- `to_aet` - converts a UTC timestamp to Australia/Melbourne
-- `to_aet_date` - converts a UTC date to Australia/Melbourne
-
-## Cleanup
-
-```bash
-# Drop every dbt-drift-managed UDF in the target schema
+# Drop every dbt-drift-managed resource in the target schema
 dbt run-operation delete_test_resources
 ```
