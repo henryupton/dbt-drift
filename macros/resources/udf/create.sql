@@ -26,15 +26,20 @@
 {% macro snowflake__create_udf(resource_config) %}
   {# Snowflake-specific implementation #}
 
+  {# Stamp the managed marker into the comment so dbt-drift can recognize this
+     object later for drift/orphan detection. #}
+  {% set marker = dbt_drift.managed_marker() %}
+  {% set user_comment = resource_config.get('comment') %}
+  {% set full_comment = (user_comment ~ ' | ' ~ marker) if user_comment else marker %}
+  {% set safe_comment = full_comment | replace("'", "''") %}
+
   {% set create_sql %}
     create or replace function {{ target.schema }}.{{ resource_config.name }}(
       {{ resource_config.arguments }}
     )
     returns {{ resource_config.returns }}
     language {{ resource_config.language | default('sql') }}
-    {% if resource_config.comment %}
-    comment = '{{ resource_config.comment }}'
-    {% endif %}
+    comment = '{{ safe_comment }}'
     as
     $$
     {{ resource_config.definition }}

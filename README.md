@@ -28,6 +28,11 @@ Define resources in `dbt_project.yml`:
 ```yaml
 vars:
   dbt_drift:
+    # Report drift between config and the warehouse (default true)
+    show_drift: true
+    # Apply changes so the warehouse matches config (default false)
+    reconcile_drift: false
+
     resources:
       udf:
         calculate_discount:
@@ -41,13 +46,42 @@ vars:
 ### Usage
 
 ```bash
-# Manage all resources
+# Report drift (default: read-only, changes nothing)
 dbt run-operation dbt_drift.run
 
-# Or use in on-run-start hook
+# Reconcile: apply create / update / delete to match config
+dbt run-operation dbt_drift.run --vars '{dbt_drift: {reconcile_drift: true}}'
+
+# Or use in an on-run-start hook (obeys the show_drift / reconcile_drift vars)
 on-run-start:
   - "{{ dbt_drift.run() }}"
 ```
+
+## Drift Behaviour
+
+Two vars under `vars.dbt_drift` control what `run` does:
+
+| Var | Default | Effect |
+| --- | --- | --- |
+| `show_drift` | `true` | Log the planned actions (create / update / delete) |
+| `reconcile_drift` | `false` | Apply those actions to the warehouse |
+
+By default `run` is **read-only**: it reports drift but changes nothing. Set
+`reconcile_drift: true` to apply changes.
+
+### How resources are tracked
+
+On create, dbt-drift stamps a managed marker (`dbt-drift:managed`) into each
+resource's comment. This lets it distinguish objects it manages from objects
+created elsewhere.
+
+### Orphan handling
+
+During reconcile, a resource that is **managed by dbt-drift** but no longer
+present in config is treated as an orphan and dropped. Objects **without** the
+managed marker are never touched, so dbt-drift will not delete anything it
+didn't create. (Orphan detection requires the resource type to implement a
+`list_{type}` macro; without it, deletion is skipped.)
 
 ## Architecture
 
@@ -55,22 +89,30 @@ The framework uses a **resource-oriented CRUD pattern**:
 
 ```
 macros/
-├── resource_management/     # Core orchestration
-│   ├── run.sql             # Entrypoint
-│   ├── manage_resources.sql
-│   ├── compare.sql         # Recursive comparison with normalization
+├── resource_management/       # Core orchestration
+│   ├── run.sql                # Entrypoint (obeys show_drift / reconcile_drift)
+│   ├── manage_resources.sql   # Plan + report + apply per resource type
+│   ├── compare.sql            # Recursive comparison with normalization
+│   ├── needs_update.sql       # Decide if a resource has drifted
+│   ├── load_resource_configs.sql
+│   ├── list_resource.sql      # Dispatch to list_{type} (orphan detection)
+│   ├── normalize_resource.sql # Dispatch to normalize_{type} (drift-noise)
+│   ├── canonicalize_types.sql # Warehouse type canonicalization helpers
+│   ├── managed_marker.sql     # The dbt-drift:managed marker
 │   └── crud/
 │       ├── create_resource.sql
 │       ├── read_resource.sql
 │       ├── update_resource.sql
 │       └── delete_resource.sql
 │
-└── resources/              # Resource-specific implementations
+└── resources/                 # Resource-specific implementations
     └── {resource_type}/
-        ├── create.sql      # How to create this resource
-        ├── read.sql        # How to read from warehouse
-        ├── update.sql      # How to update this resource
-        └── delete.sql      # How to delete this resource
+        ├── create.sql         # How to create this resource
+        ├── read.sql           # How to read current state from the warehouse
+        ├── update.sql         # How to update this resource
+        ├── delete.sql         # How to delete this resource
+        ├── list.sql           # (optional) list managed resources -> orphans
+        └── normalize.sql      # (optional) canonicalize config for comparison
 ```
 
 ## Adding New Resource Types
@@ -78,8 +120,24 @@ macros/
 To add support for a new resource type, you need to:
 
 1. Create a folder under `macros/resources/` matching the resource type name
-2. Implement 4 CRUD operations (create, read, update, delete)
+2. Implement the CRUD operations. Each is dispatched by name (`create_{type}`, etc.):
+   - `read_{type}(resource_config)` - return current warehouse state (or `none`)
+   - `create_{type}(resource_config)` / `update_{type}(resource_config)`
+   - `delete_{type}(resource_config)`
 3. Define resource configuration in `vars.dbt_drift.resources`
+
+Two optional macros unlock the full feature set:
+
+- `list_{type}()` - return the resources dbt-drift manages in the warehouse
+  (those carrying `dbt_drift.managed_marker()`). Enables orphan detection and
+  deletion. Return `none` where listing isn't supported.
+- `normalize_{type}(resource_config)` - canonicalize the desired config so it
+  compares equal to warehouse-read state (e.g. type widening). Optional but
+  strongly recommended to avoid false-positive drift.
+
+> **Note:** `read`, `create`, `update` and `delete` all receive the full
+> `resource_config` dict. Stamp `dbt_drift.managed_marker()` into the object on
+> create (e.g. in its comment) so dbt-drift can recognize it later.
 
 ### Example: Adding Masking Policy Support
 
@@ -96,20 +154,21 @@ mkdir -p macros/resources/masking_policy
 Create `macros/resources/masking_policy/read.sql`:
 
 ```sql
-{% macro read_masking_policy(resource_name) %}
+{% macro read_masking_policy(resource_config) %}
   {#
     Read the current state of a masking policy from the warehouse
     Returns: Dictionary with policy metadata or none if not found
   #}
 
-  {{ return(adapter.dispatch('read_masking_policy', 'dbt_drift')(resource_name)) }}
+  {{ return(adapter.dispatch('read_masking_policy', 'dbt_drift')(resource_config)) }}
 {% endmacro %}
 
-{% macro default__read_masking_policy(resource_name) %}
+{% macro default__read_masking_policy(resource_config) %}
   {{ exceptions.raise_compiler_error("read_masking_policy not implemented for adapter: " ~ target.type) }}
 {% endmacro %}
 
-{% macro snowflake__read_masking_policy(resource_name) %}
+{% macro snowflake__read_masking_policy(resource_config) %}
+  {% set resource_name = resource_config.name %}
   {% set query %}
     select
       name,
@@ -222,19 +281,20 @@ Create `macros/resources/masking_policy/update.sql`:
 Create `macros/resources/masking_policy/delete.sql`:
 
 ```sql
-{% macro delete_masking_policy(resource_name, extra_args=none) %}
+{% macro delete_masking_policy(resource_config) %}
   {#
     Delete a masking policy from the warehouse
   #}
 
-  {{ return(adapter.dispatch('delete_masking_policy', 'dbt_drift')(resource_name, extra_args)) }}
+  {{ return(adapter.dispatch('delete_masking_policy', 'dbt_drift')(resource_config)) }}
 {% endmacro %}
 
-{% macro default__delete_masking_policy(resource_name, extra_args=none) %}
+{% macro default__delete_masking_policy(resource_config) %}
   {{ exceptions.raise_compiler_error("delete_masking_policy not implemented for adapter: " ~ target.type) }}
 {% endmacro %}
 
-{% macro snowflake__delete_masking_policy(resource_name, extra_args=none) %}
+{% macro snowflake__delete_masking_policy(resource_config) %}
+  {% set resource_name = resource_config.name %}
   {% set drop_sql %}
     drop masking policy if exists {{ target.schema }}.{{ resource_name }}
   {% endset %}

@@ -1,0 +1,37 @@
+name: 'dbt_drift_integration_tests'
+version: '1.0.0'
+config-version: 2
+
+profile: 'integration_tests'
+
+macro-paths: ["macros"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+on-run-start:
+  - "{{ dbt_drift.run() }}"
+
+vars:
+  dbt_drift:
+    show_drift: true
+    # Integration tests apply changes so resources actually get created
+    reconcile_drift: true
+
+    resources:
+      udf:
+        to_aet:
+          arguments: "ts timestamp_tz"
+          returns: "timestamp_tz(9)"
+          language: "sql"
+          definition: "convert_timezone('Australia/Melbourne', ts)"
+          comment: "Function which converts UTC timestamp to Australia/Melbourne timezone"
+
+        to_aet_date:
+          arguments: "dt date"
+          returns: "date"
+          language: "sql"
+          definition: "convert_timezone('Australia/Melbourne', dt::timestamp_tz)::date"
+          comment: "Converts UTC date to Australia/Melbourne date"

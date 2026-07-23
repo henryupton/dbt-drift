@@ -16,8 +16,11 @@ clean-targets:
 # Configure vars for resource management
 vars:
   dbt_drift:
-    # Default behavior for drift detection
-    drift_mode: 'reconcile'
+    # Report drift between config and the warehouse (logs planned actions)
+    show_drift: true
+    # Apply changes to make the warehouse match config (create/update/delete).
+    # Left false by default so `run` is read-only until you opt in.
+    reconcile_drift: false
 
     # Resource configurations
     resources:

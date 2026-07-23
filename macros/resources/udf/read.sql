@@ -1,27 +1,28 @@
-{% macro read_udf(resource_name) %}
+{% macro read_udf(resource_config) %}
   {#
-    Read the current state of a UDF from the warehouse
+    Read the current state of a UDF from the warehouse.
 
     Args:
-      resource_name: Name of the UDF to read
+      resource_config: The desired-state config (dict with at least 'name';
+        'arguments' is used to disambiguate overloaded functions)
 
     Returns:
-      Dictionary with UDF metadata or none if not found
+      Dictionary with UDF metadata (types canonicalized), or none if not found
   #}
 
-  {{ return(adapter.dispatch('read_udf', 'dbt_drift')(resource_name)) }}
+  {{ return(adapter.dispatch('read_udf', 'dbt_drift')(resource_config)) }}
 
 {% endmacro %}
 
 
-{% macro default__read_udf(resource_name) %}
+{% macro default__read_udf(resource_config) %}
   {# Default implementation - adapter not supported #}
   {{ exceptions.raise_compiler_error("read_udf not implemented for adapter: " ~ target.type) }}
 {% endmacro %}
 
 
-{% macro snowflake__read_udf(resource_name) %}
-  {# Snowflake-specific implementation #}
+{% macro snowflake__read_udf(resource_config) %}
+  {% set resource_name = resource_config.name if resource_config is mapping else resource_config %}
 
   {% set query %}
     select
@@ -33,23 +34,46 @@
     from {{ target.database }}.information_schema.functions
     where function_name = upper('{{ resource_name }}')
       and function_schema = upper('{{ target.schema }}')
-    limit 1
   {% endset %}
 
   {% set result = run_query(query) %}
 
-  {% if result and result.rows|length > 0 %}
-    {% set row = result.rows[0] %}
-    {% set state = {
-      'name': row['FUNCTION_NAME'] | lower,
-      'language': row['FUNCTION_LANGUAGE'] | lower,
-      'definition': row['FUNCTION_DEFINITION'] | lower,
-      'arguments': row['ARGUMENT_SIGNATURE'] | lower,
-      'returns': row['RETURN_TYPE'] | lower
-    } %}
-    {{ return(state) }}
-  {% else %}
+  {% if not result or result.rows | length == 0 %}
     {{ return(none) }}
   {% endif %}
+
+  {# When arguments are configured, select the matching overload #}
+  {% set desired_args = none %}
+  {% if resource_config is mapping and resource_config.get('arguments') is not none %}
+    {% set desired_args = dbt_drift.canonicalize_types(resource_config.get('arguments')) %}
+  {% endif %}
+
+  {% set picked = namespace(row=none) %}
+  {% for row in result.rows %}
+    {% if picked.row is none %}
+      {% if desired_args is none %}
+        {% set picked.row = row %}
+      {% else %}
+        {% set row_args = dbt_drift.canonicalize_types(row['ARGUMENT_SIGNATURE']) %}
+        {% if dbt_drift.compare(row_args, desired_args) %}
+          {% set picked.row = row %}
+        {% endif %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+
+  {% if picked.row is none %}
+    {{ return(none) }}
+  {% endif %}
+
+  {% set row = picked.row %}
+  {% set state = {
+    'name': row['FUNCTION_NAME'] | lower,
+    'language': row['FUNCTION_LANGUAGE'] | lower,
+    'definition': row['FUNCTION_DEFINITION'] | lower,
+    'arguments': dbt_drift.canonicalize_types(row['ARGUMENT_SIGNATURE']),
+    'returns': dbt_drift.canonicalize_types(row['RETURN_TYPE'])
+  } %}
+  {{ return(state) }}
 
 {% endmacro %}
