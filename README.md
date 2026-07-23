@@ -171,6 +171,10 @@ Two optional macros unlock the full feature set:
 
 ### Example: Adding Masking Policy Support
 
+> Masking policies are now built in (`macros/resources/masking_policy/`). This
+> walkthrough is kept as a worked example of how a resource type is put
+> together, and doubles as a reference for that implementation.
+
 Let's walk through adding support for Snowflake dynamic masking policies.
 
 #### Step 1: Create Resource Folder
@@ -429,9 +433,26 @@ vars:
 > List-valued options such as `NULL_IF` raise a clear error rather than
 > silently mismanaging drift.
 
+- ✅ **Masking Policies** - Dynamic data masking
+
+```yaml
+vars:
+  dbt_drift:
+    resources:
+      masking_policy:
+        mask_email:
+          signature: "val string"   # first arg is the column being masked
+          returns: "string"         # must match the first arg's type
+          body: |
+            case
+              when current_role() = 'ADMIN' then val
+              else '***masked***'
+            end
+          comment: "Mask email unless ADMIN"
+```
+
 ### Coming Soon
 
-- 🚧 **Masking Policies** - Dynamic data masking
 - 🚧 **External Functions** - API-backed functions
 - 🚧 **Stored Procedures** - Procedural logic
 

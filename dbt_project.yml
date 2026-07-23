@@ -50,3 +50,14 @@ vars:
           skip_header: 1
           compression: gzip
           comment: "Pipe-delimited CSV"
+
+      masking_policy:
+        mask_email:
+          signature: "val string"
+          returns: "string"
+          body: |
+            case
+              when current_role() = 'ADMIN' then val
+              else '***masked***'
+            end
+          comment: "Mask email unless ADMIN"
