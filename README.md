@@ -83,6 +83,30 @@ managed marker are never touched, so dbt-drift will not delete anything it
 didn't create. (Orphan detection requires the resource type to implement a
 `list_{type}` macro; without it, deletion is skipped.)
 
+## Referencing Resources in Models
+
+Managed resources live in `target.schema`, so referencing them by bare name
+from a model in another schema won't resolve. Use the per-type resolver macros
+to expand a short name to its fully-qualified `database.schema.name`:
+
+```sql
+-- Call a managed UDF
+select
+  {{ dbt_drift.udf('calculate_discount') }}(price, discount_pct) as net_price
+from {{ ref('orders') }}
+```
+
+```sql
+-- Attach a managed row access policy (e.g. in a post-hook)
+alter table {{ this }} add row access policy
+  {{ dbt_drift.row_access_policy('restrict_by_region') }} on (region);
+```
+
+Each resolver validates that the name is configured under
+`vars.dbt_drift.resources.{type}` and raises a clear error on a typo, the way
+`ref()` fails on an unknown model. Every resource type ships a matching macro
+(`dbt_drift.udf`, `dbt_drift.row_access_policy`, ...).
+
 ## Architecture
 
 The framework uses a **resource-oriented CRUD pattern**:
@@ -97,6 +121,7 @@ macros/
 │   ├── load_resource_configs.sql
 │   ├── list_resource.sql      # Dispatch to list_{type} (orphan detection)
 │   ├── normalize_resource.sql # Dispatch to normalize_{type} (drift-noise)
+│   ├── resolve_resource.sql   # Resolve a resource to its fully-qualified name
 │   ├── canonicalize_types.sql # Warehouse type canonicalization helpers
 │   ├── managed_marker.sql     # The dbt-drift:managed marker
 │   └── crud/
@@ -112,7 +137,8 @@ macros/
         ├── update.sql         # How to update this resource
         ├── delete.sql         # How to delete this resource
         ├── list.sql           # (optional) list managed resources -> orphans
-        └── normalize.sql      # (optional) canonicalize config for comparison
+        ├── normalize.sql      # (optional) canonicalize config for comparison
+        └── resolve.sql        # (optional) {type}(name) resolver for models
 ```
 
 ## Adding New Resource Types
@@ -134,6 +160,10 @@ Two optional macros unlock the full feature set:
 - `normalize_{type}(resource_config)` - canonicalize the desired config so it
   compares equal to warehouse-read state (e.g. type widening). Optional but
   strongly recommended to avoid false-positive drift.
+- `{type}(name)` - a resolver macro (e.g. `udf`, `row_access_policy`) that
+  delegates to `dbt_drift.resolve_resource('{type}', name)` so models can
+  reference the resource by short name. Recommended for any resource that gets
+  referenced from SQL.
 
 > **Note:** `read`, `create`, `update` and `delete` all receive the full
 > `resource_config` dict. Stamp `dbt_drift.managed_marker()` into the object on
@@ -362,11 +392,27 @@ dbt run-operation dbt_drift.run
 ### Snowflake
 
 - ✅ **UDF** - User-Defined Functions (SQL, JavaScript, Python)
+- ✅ **Row Access Policies** - Row-level security
+
+```yaml
+vars:
+  dbt_drift:
+    resources:
+      row_access_policy:
+        restrict_by_region:
+          signature: "region string"   # columns the policy is applied to
+          body: |                       # any boolean SQL expression
+            case
+              when current_role() = 'ADMIN' then true
+              when region = current_role() then true
+              else false
+            end
+          comment: "Row-level security by region / role"
+```
 
 ### Coming Soon
 
 - 🚧 **Masking Policies** - Dynamic data masking
-- 🚧 **Row Access Policies** - Row-level security
 - 🚧 **External Functions** - API-backed functions
 - 🚧 **Stored Procedures** - Procedural logic
 

@@ -31,3 +31,14 @@ vars:
           language: "sql"
           definition: "price * (1 - discount_pct / 100)"
           comment: "Calculates discounted price"
+
+      row_access_policy:
+        restrict_by_region:
+          signature: "region string"
+          body: |
+            case
+              when current_role() = 'ADMIN' then true
+              when region = current_role() then true
+              else false
+            end
+          comment: "Row-level security by region / role"
