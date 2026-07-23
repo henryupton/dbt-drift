@@ -61,3 +61,14 @@ vars:
               else '***masked***'
             end
           comment: "Mask email unless ADMIN"
+
+      stored_procedure:
+        log_run:
+          arguments: "run_label string"
+          returns: "string"
+          language: "sql"
+          definition: |
+            begin
+              return 'logged: ' || run_label;
+            end;
+          comment: "Example logging procedure"

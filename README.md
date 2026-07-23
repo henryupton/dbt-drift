@@ -451,10 +451,31 @@ vars:
           comment: "Mask email unless ADMIN"
 ```
 
+- ✅ **Stored Procedures** - Procedural logic (SQL scripting, JavaScript)
+
+```yaml
+vars:
+  dbt_drift:
+    resources:
+      stored_procedure:
+        log_run:
+          arguments: "run_label string"
+          returns: "string"
+          language: "sql"      # sql or javascript (inline-body)
+          definition: |
+            begin
+              return 'logged: ' || run_label;
+            end;
+          comment: "Example logging procedure"
+```
+
+> Inline-body procedures only for now (SQL scripting, JavaScript). Handler-based
+> languages (Python/Java/Scala) needing `runtime_version`/`packages`/`handler`
+> aren't supported yet - same limitation as UDFs.
+
 ### Coming Soon
 
 - 🚧 **External Functions** - API-backed functions
-- 🚧 **Stored Procedures** - Procedural logic
 
 ## License
 
