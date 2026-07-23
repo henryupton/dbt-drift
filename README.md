@@ -410,6 +410,25 @@ vars:
           comment: "Row-level security by region / role"
 ```
 
+- ✅ **File Formats** - Reusable load/unload formats
+
+```yaml
+vars:
+  dbt_drift:
+    resources:
+      file_format:
+        standard_csv:
+          type: csv               # reserved: type, comment
+          field_delimiter: "|"    # any other key is a format option
+          skip_header: 1
+          compression: gzip
+          comment: "Pipe-delimited CSV"
+```
+
+> Only scalar options (string / number / boolean) are supported for now.
+> List-valued options such as `NULL_IF` raise a clear error rather than
+> silently mismanaging drift.
+
 ### Coming Soon
 
 - 🚧 **Masking Policies** - Dynamic data masking

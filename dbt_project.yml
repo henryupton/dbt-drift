@@ -42,3 +42,11 @@ vars:
               else false
             end
           comment: "Row-level security by region / role"
+
+      file_format:
+        standard_csv:
+          type: csv
+          field_delimiter: "|"
+          skip_header: 1
+          compression: gzip
+          comment: "Pipe-delimited CSV"
