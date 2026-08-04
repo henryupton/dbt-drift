@@ -31,7 +31,12 @@
 
   {# Strip Snowflake's default precisions #}
   {% set s = modules.re.sub('number\\(\\s*38\\s*,\\s*0\\s*\\)', 'number', s) %}
-  {% set s = modules.re.sub('(?:varchar|char|character|string|text)\\(\\s*16777216\\s*\\)', 'varchar', s) %}
+  {# Two maximum VARCHAR lengths are in play: 16 MB historically, 128 MB since
+     Snowflake raised the limit. Which one comes back depends on the account, and
+     both mean the unbounded form a bare `varchar` in config asks for - so treat
+     either as `varchar`. Miss one and every varchar-returning resource reports
+     drift on every run, reconciling forever. #}
+  {% set s = modules.re.sub('(?:varchar|char|character|string|text)\\(\\s*(?:16777216|134217728)\\s*\\)', 'varchar', s) %}
   {% set s = modules.re.sub('(timestamp_tz|timestamp_ntz|timestamp_ltz|timestamp|datetime|time)\\(\\s*9\\s*\\)', '\\1', s) %}
 
   {# Map aliases to their canonical base type (longest alternatives first) #}
