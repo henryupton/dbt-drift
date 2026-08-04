@@ -11,7 +11,10 @@
 
   {% set macro_name = 'read_' ~ resource_type %}
 
-  {% if macro_name not in dbt_drift %}
+  {# Probe by indexing, not `macro_name in dbt_drift`: on dbt-fusion the `in`
+     test against a macro namespace is always false, so every dispatch would
+     report the resource type as unknown. #}
+  {% if dbt_drift[macro_name] is not defined %}
     {{ exceptions.raise_compiler_error("Unknown resource type: " ~ resource_type ~ " (macro dbt_drift." ~ macro_name ~ " not found)") }}
   {% endif %}
 

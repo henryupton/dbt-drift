@@ -159,6 +159,12 @@ To add support for a new resource type, you need to:
    - `delete_{type}(resource_config)`
 3. Define resource configuration in `vars.dbt_drift.resources`
 
+Dispatch resolves a macro by indexing the package namespace
+(`dbt_drift[macro_name]`) rather than testing `macro_name in dbt_drift`. On
+dbt-fusion the `in` test against a macro namespace is always false, which would
+make every resource type report as unknown. Keep the indexed form when adding a
+type.
+
 Two optional macros unlock the full feature set:
 
 - `list_{type}()` - return the resources dbt-drift manages in the warehouse
@@ -166,7 +172,9 @@ Two optional macros unlock the full feature set:
   deletion. Return `none` where listing isn't supported.
 - `normalize_{type}(resource_config)` - canonicalize the desired config so it
   compares equal to warehouse-read state (e.g. type widening). Optional but
-  strongly recommended to avoid false-positive drift.
+  strongly recommended to avoid false-positive drift. Include `comment` here,
+  set to `dbt_drift.stamped_comment(resource_config)`, so the managed marker is
+  part of the compared state.
 - `{type}(name)` - a resolver macro (e.g. `udf`, `row_access_policy`) that
   delegates to `dbt_drift.resolve_resource('{type}', name)` so models can
   reference the resource by short name. Recommended for any resource that gets
