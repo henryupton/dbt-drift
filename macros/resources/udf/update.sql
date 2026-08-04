@@ -25,6 +25,6 @@
     Snowflake uses CREATE OR REPLACE, so update is the same as create
   #}
 
-  {{ return(create_udf(resource_config)) }}
+  {{ return(dbt_drift.create_udf(resource_config)) }}
 
 {% endmacro %}
