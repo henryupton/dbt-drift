@@ -30,13 +30,10 @@
 {% macro snowflake__create_stored_procedure(resource_config) %}
   {# Snowflake-specific implementation #}
 
-  {% set marker = dbt_drift.managed_marker() %}
-  {% set user_comment = resource_config.get('comment') %}
-  {% set full_comment = (user_comment ~ ' | ' ~ marker) if user_comment else marker %}
-  {% set safe_comment = full_comment | replace("'", "''") %}
+  {% set safe_comment = dbt_drift.stamped_comment(resource_config) | replace("'", "''") %}
 
   {% set create_sql %}
-    create or replace procedure {{ target.schema }}.{{ resource_config.name }}(
+    create or replace procedure {{ target.database }}.{{ target.schema }}.{{ resource_config.name }}(
       {{ resource_config.arguments }}
     )
     returns {{ resource_config.returns }}

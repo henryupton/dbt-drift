@@ -14,11 +14,11 @@ dbt-drift allows you to manage database objects that dbt doesn't natively suppor
 
 ### Installation
 
-```bash
+```yaml
 # In your dbt project's packages.yml
 packages:
-  - git: "https://github.com/your-org/dbt-drift"
-    revision: main
+  - git: "https://github.com/henryupton/dbt-drift.git"
+    revision: 1.0.0
 ```
 
 ### Configuration
@@ -74,6 +74,13 @@ By default `run` is **read-only**: it reports drift but changes nothing. Set
 On create, dbt-drift stamps a managed marker (`dbt-drift:managed`) into each
 resource's comment. This lets it distinguish objects it manages from objects
 created elsewhere.
+
+The marker is part of the compared state, not just something written on the way
+past. So **adopting an object that already exists** — adding config for a UDF you
+created by hand, matching it exactly — reports as drift on the first plan, and the
+reconcile that follows rewrites it solely to stamp the marker. That is deliberate:
+without it the object would report `no_change` forever, never carry the marker, and
+so never be visible to orphan detection. It would be managed in name only.
 
 ### Orphan handling
 

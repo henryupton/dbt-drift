@@ -30,7 +30,8 @@
       procedure_language,
       procedure_definition,
       argument_signature,
-      data_type as return_type
+      data_type as return_type,
+      comment
     from {{ target.database }}.information_schema.procedures
     where procedure_name = upper('{{ resource_name }}')
       and procedure_schema = upper('{{ target.schema }}')
@@ -72,7 +73,8 @@
     'language': row['PROCEDURE_LANGUAGE'] | lower,
     'definition': row['PROCEDURE_DEFINITION'] | lower,
     'arguments': dbt_drift.canonicalize_types(row['ARGUMENT_SIGNATURE']),
-    'returns': dbt_drift.canonicalize_types(row['RETURN_TYPE'])
+    'returns': dbt_drift.canonicalize_types(row['RETURN_TYPE']),
+    'comment': row['COMMENT']
   } %}
   {{ return(state) }}
 

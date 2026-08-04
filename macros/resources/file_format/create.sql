@@ -44,10 +44,7 @@
 {% macro snowflake__create_file_format(resource_config) %}
   {# Snowflake-specific implementation #}
 
-  {% set marker = dbt_drift.managed_marker() %}
-  {% set user_comment = resource_config.get('comment') %}
-  {% set full_comment = (user_comment ~ ' | ' ~ marker) if user_comment else marker %}
-  {% set safe_comment = full_comment | replace("'", "''") %}
+  {% set safe_comment = dbt_drift.stamped_comment(resource_config) | replace("'", "''") %}
 
   {% set reserved = ['name', 'type', 'comment'] %}
   {% set option_lines = [] %}
@@ -58,7 +55,7 @@
   {% endfor %}
 
   {% set create_sql %}
-    create or replace file format {{ target.schema }}.{{ resource_config.name }}
+    create or replace file format {{ target.database }}.{{ target.schema }}.{{ resource_config.name }}
       type = {{ resource_config.type }}
       {% for line in option_lines %}
       {{ line }}

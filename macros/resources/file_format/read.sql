@@ -47,9 +47,13 @@
     {% do props.update({row['property'] | lower: row['property_value']}) %}
   {% endfor %}
 
-  {# Project to the configured options (+ type) so keys align with desired state #}
+  {# Project to the configured options (+ type) so keys align with desired state.
+     The comment comes from SHOW - DESCRIBE reports format options only. #}
   {% set reserved = ['name', 'type', 'comment'] %}
-  {% set state = {'type': (props.get('type') or '') | lower} %}
+  {% set state = {
+    'type': (props.get('type') or '') | lower,
+    'comment': existing.rows[0]['comment']
+  } %}
   {% if resource_config is mapping %}
     {% for key, value in resource_config.items() %}
       {% if key not in reserved %}

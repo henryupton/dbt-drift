@@ -30,5 +30,9 @@
     {% do normalized.update({'arguments': dbt_drift.canonicalize_types(normalized['arguments'])}) %}
   {% endif %}
 
+  {# The warehouse comment carries the managed marker, so compare against the
+     stamped form rather than the bare config comment. #}
+  {% do normalized.update({'comment': dbt_drift.stamped_comment(resource_config)}) %}
+
   {{ return(normalized) }}
 {% endmacro %}

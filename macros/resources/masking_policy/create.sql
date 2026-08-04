@@ -26,13 +26,10 @@
 {% macro snowflake__create_masking_policy(resource_config) %}
   {# Snowflake-specific implementation #}
 
-  {% set marker = dbt_drift.managed_marker() %}
-  {% set user_comment = resource_config.get('comment') %}
-  {% set full_comment = (user_comment ~ ' | ' ~ marker) if user_comment else marker %}
-  {% set safe_comment = full_comment | replace("'", "''") %}
+  {% set safe_comment = dbt_drift.stamped_comment(resource_config) | replace("'", "''") %}
 
   {% set create_sql %}
-    create or replace masking policy {{ target.schema }}.{{ resource_config.name }}
+    create or replace masking policy {{ target.database }}.{{ target.schema }}.{{ resource_config.name }}
       as ({{ resource_config.signature }})
       returns {{ resource_config.returns }} ->
       {{ resource_config.body }}

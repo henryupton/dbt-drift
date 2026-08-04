@@ -10,6 +10,12 @@
     By default dbt-drift reports drift but changes nothing. Set reconcile_drift
     to true to apply create / update / delete actions.
 
+    Returns the empty string, not the action plan, so the macro is safe to render
+    as an on-run-start hook - a hook's rendered output IS the SQL dbt executes,
+    and a returned list would render as its Python repr and fail to parse. The
+    plan reaches the operator through the logs; callers wanting it as data call
+    manage_resources directly.
+
     Usage:
       dbt run-operation dbt_drift.run
       dbt run-operation dbt_drift.run --vars '{dbt_drift: {reconcile_drift: true}}'
@@ -57,6 +63,6 @@
   {% endif %}
   {{ log("=" * 60, info=true) }}
 
-  {{ return(all_actions) }}
+  {{ return('') }}
 
 {% endmacro %}

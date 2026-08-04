@@ -30,7 +30,8 @@
       function_language,
       function_definition,
       argument_signature,
-      data_type as return_type
+      data_type as return_type,
+      comment
     from {{ target.database }}.information_schema.functions
     where function_name = upper('{{ resource_name }}')
       and function_schema = upper('{{ target.schema }}')
@@ -72,7 +73,8 @@
     'language': row['FUNCTION_LANGUAGE'] | lower,
     'definition': row['FUNCTION_DEFINITION'] | lower,
     'arguments': dbt_drift.canonicalize_types(row['ARGUMENT_SIGNATURE']),
-    'returns': dbt_drift.canonicalize_types(row['RETURN_TYPE'])
+    'returns': dbt_drift.canonicalize_types(row['RETURN_TYPE']),
+    'comment': row['COMMENT']
   } %}
   {{ return(state) }}
 

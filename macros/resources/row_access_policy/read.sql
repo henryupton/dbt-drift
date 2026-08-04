@@ -42,12 +42,14 @@
     {{ return(none) }}
   {% endif %}
 
-  {# SHOW / DESCRIBE metadata commands return lower-cased column names #}
+  {# SHOW / DESCRIBE metadata commands return lower-cased column names.
+     The comment comes from SHOW - DESCRIBE does not report it. #}
   {% set row = result.rows[0] %}
   {% set state = {
     'name': row['name'] | lower,
     'signature': dbt_drift.canonicalize_types(row['signature']),
-    'body': row['body'] | lower
+    'body': row['body'] | lower,
+    'comment': existing.rows[0]['comment']
   } %}
   {{ return(state) }}
 
