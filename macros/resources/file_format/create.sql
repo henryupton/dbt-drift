@@ -24,8 +24,9 @@
   {#
     Render a single file format option value for DDL:
       string  -> quoted    boolean -> bare true/false    number -> bare
-    Anything else (e.g. a list) is not yet supported.
-    NB: check boolean before number - a bool is a number in Jinja.
+      list    -> parenthesised quoted elements, e.g. NULL_IF = ('', 'NULL')
+    NB: check boolean before number - a bool is a number in Jinja; and string
+    before sequence - a string is a sequence too.
   #}
   {% if value is boolean %}
     {{ return('true' if value else 'false') }}
@@ -33,9 +34,15 @@
     {{ return(value) }}
   {% elif value is string %}
     {{ return("'" ~ (value | replace("'", "''")) ~ "'") }}
+  {% elif value is sequence %}
+    {% set elements = [] %}
+    {% for element in value %}
+      {% do elements.append("'" ~ (element | string | replace("'", "''")) ~ "'") %}
+    {% endfor %}
+    {{ return('(' ~ (elements | join(', ')) ~ ')') }}
   {% else %}
     {{ exceptions.raise_compiler_error(
-      "file_format option '" ~ key ~ "' has an unsupported value type. Only string, number and boolean options are supported (list-valued options like NULL_IF are not yet supported)."
+      "file_format option '" ~ key ~ "' has an unsupported value type. Supported: string, number, boolean, list."
     ) }}
   {% endif %}
 {% endmacro %}

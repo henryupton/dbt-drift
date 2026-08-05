@@ -442,12 +442,14 @@ vars:
           field_delimiter: "|"    # any other key is a format option
           skip_header: 1
           compression: gzip
+          null_if: ["", "NULL"]   # list options render as ('', 'NULL')
           comment: "Pipe-delimited CSV"
 ```
 
-> Only scalar options (string / number / boolean) are supported for now.
-> List-valued options such as `NULL_IF` raise a clear error rather than
-> silently mismanaging drift.
+> Options may be strings, numbers, booleans or lists. A list is compared in the
+> bracketed form `DESCRIBE FILE FORMAT` reports (`[, NULL]`) rather than parsed
+> out of it, because Snowflake reports both `()` and `('')` as `[]` — parsing
+> would make a configured `[""]` drift on every run.
 
 - ✅ **Masking Policies** - Dynamic data masking
 
