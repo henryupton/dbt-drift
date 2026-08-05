@@ -19,6 +19,17 @@
 {% endmacro %}
 
 
+{% macro snowflake__escape_file_format_value(value) %}
+  {#
+    DESCRIBE FILE FORMAT reports string values JSON-escaped: a configured `"`
+    comes back as `\"`, and the stock NULL_IF value `\N` as `\\N`. Apply the same
+    escaping to config values so they compare equal. Backslashes first, or the
+    backslash introduced by the quote rule would be escaped in turn.
+  #}
+  {{ return(value | string | replace('\\', '\\\\') | replace('"', '\\"')) }}
+{% endmacro %}
+
+
 {% macro snowflake__render_file_format_list(value) %}
   {#
     Render a list option the way DESCRIBE FILE FORMAT reports it: bracketed,
@@ -33,7 +44,7 @@
   #}
   {% set elements = [] %}
   {% for element in value %}
-    {% do elements.append(element | string) %}
+    {% do elements.append(dbt_drift.snowflake__escape_file_format_value(element)) %}
   {% endfor %}
   {{ return('[' ~ (elements | join(', ')) ~ ']') }}
 {% endmacro %}
@@ -47,6 +58,8 @@
       {% do normalized.update({key: value}) %}
     {% elif value is not string and value is sequence %}
       {% do normalized.update({key: dbt_drift.snowflake__render_file_format_list(value)}) %}
+    {% elif value is string %}
+      {% do normalized.update({key: dbt_drift.snowflake__escape_file_format_value(value)}) %}
     {% else %}
       {% do normalized.update({key: value | string}) %}
     {% endif %}
