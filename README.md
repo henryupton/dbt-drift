@@ -126,6 +126,7 @@ macros/
 │   ├── compare.sql            # Recursive comparison with normalization
 │   ├── needs_update.sql       # Decide if a resource has drifted
 │   ├── load_resource_configs.sql
+│   ├── dispatch_resource.sql  # The one type -> macro lookup; all dispatch routes here
 │   ├── list_resource.sql      # Dispatch to list_{type} (orphan detection)
 │   ├── normalize_resource.sql # Dispatch to normalize_{type} (drift-noise)
 │   ├── resolve_resource.sql   # Resolve a resource to its fully-qualified name
@@ -159,11 +160,11 @@ To add support for a new resource type, you need to:
    - `delete_{type}(resource_config)`
 3. Define resource configuration in `vars.dbt_drift.resources`
 
-Dispatch resolves a macro by indexing the package namespace
-(`dbt_drift[macro_name]`) rather than testing `macro_name in dbt_drift`. On
-dbt-fusion the `in` test against a macro namespace is always false, which would
-make every resource type report as unknown. Keep the indexed form when adding a
-type.
+You don't need to touch dispatch. Every dispatcher routes through
+`dispatch_resource`, the single place a resource type is resolved to a macro —
+and so the single place that has to keep indexing the package namespace rather
+than testing `macro_name in dbt_drift`. On dbt-fusion that `in` test is always
+false, which would make every resource type report as unknown.
 
 Two optional macros unlock the full feature set:
 

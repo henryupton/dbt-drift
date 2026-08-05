@@ -8,15 +8,9 @@
     unchanged.
   #}
 
-  {% set macro_name = 'normalize_' ~ resource_type %}
-
-  {# Probe by indexing, not `macro_name in dbt_drift`: on dbt-fusion the `in`
-     test against a macro namespace is always false, so every dispatch would
-     report the resource type as unknown. #}
-  {% if dbt_drift[macro_name] is not defined %}
-    {{ return(resource_config) }}
-  {% endif %}
-
-  {{ return(dbt_drift[macro_name](resource_config)) }}
+  {{ return(dbt_drift.dispatch_resource(
+      resource_type, 'normalize', resource_config=resource_config,
+      required=false, fallback=resource_config
+  )) }}
 
 {% endmacro %}
