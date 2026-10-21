@@ -18,7 +18,7 @@ dbt-drift allows you to manage database objects that dbt doesn't natively suppor
 # In your dbt project's packages.yml
 packages:
   - git: "https://github.com/henryupton/dbt-drift.git"
-    revision: 1.0.0
+    revision: 1.1.1
 ```
 
 ### Configuration
