@@ -36,6 +36,22 @@ vars:
           definition: "convert_timezone('Australia/Melbourne', dt::timestamp_tz)::date"
           comment: "Converts UTC date to Australia/Melbourne date"
 
+        smoke_py_stem:
+          arguments: "text varchar"
+          returns: "varchar"
+          language: "python"
+          runtime_version: "3.11"
+          handler: "stem"
+          packages: ["snowballstemmer"]
+          definition: |
+            import snowballstemmer
+            _stemmer = snowballstemmer.stemmer('english')
+            def stem(text):
+                if text is None:
+                    return None
+                return ' '.join(_stemmer.stemWords(text.split()))
+          comment: "Smoke test Python UDF with a package"
+
       row_access_policy:
         smoke_rap:
           signature: "region string"
