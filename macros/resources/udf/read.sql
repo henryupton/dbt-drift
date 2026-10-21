@@ -31,7 +31,10 @@
       function_definition,
       argument_signature,
       data_type as return_type,
-      comment
+      comment,
+      runtime_version,
+      handler,
+      packages
     from {{ target.database }}.information_schema.functions
     where function_name = upper('{{ resource_name }}')
       and function_schema = upper('{{ target.schema }}')
@@ -76,6 +79,16 @@
     'returns': dbt_drift.canonicalize_types(row['RETURN_TYPE']),
     'comment': row['COMMENT']
   } %}
+
+  {# Handler languages only: a SQL/JavaScript UDF reports none of these, so
+     leaving them out keeps such UDFs comparing as before. #}
+  {% if row['RUNTIME_VERSION'] is not none %}
+    {% do state.update({
+      'runtime_version': row['RUNTIME_VERSION'],
+      'handler': row['HANDLER'],
+      'packages': dbt_drift.udf_package_list(fromjson(row['PACKAGES']) if row['PACKAGES'] else none)
+    }) %}
+  {% endif %}
   {{ return(state) }}
 
 {% endmacro %}

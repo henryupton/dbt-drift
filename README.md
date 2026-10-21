@@ -90,6 +90,31 @@ managed marker are never touched, so dbt-drift will not delete anything it
 didn't create. (Orphan detection requires the resource type to implement a
 `list_{type}` macro; without it, deletion is skipped.)
 
+## Handler-Language UDFs (Python, Java, Scala)
+
+A UDF whose language runs a handler takes three optional keys, emitted as the
+matching `CREATE FUNCTION` clauses and compared on every plan:
+
+```yaml
+udf:
+  snowball_stem:
+    arguments: "text varchar, lang varchar"
+    returns: "varchar"
+    language: "python"
+    runtime_version: "3.11"        # quote it: YAML reads 3.10 as 3.1
+    handler: "stem"
+    packages: ["snowballstemmer"]  # Anaconda channel; order is not drift
+    definition: |
+      import snowballstemmer
+      def stem(text, lang):
+          ...
+```
+
+The body is written at column 0, so Python indentation survives. Drift on the
+body ignores case and whitespace, as it does for SQL bodies, so a change that
+only re-indents Python code is not detected. Packages must be available to the
+account (Anaconda terms accepted).
+
 ## Referencing Resources in Models
 
 Managed resources live in `target.schema`, so referencing them by bare name
