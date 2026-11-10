@@ -4,7 +4,8 @@
 
     Snowflake refuses CREATE OR REPLACE on a policy attached to any column
     (003531), so the body and comment are altered instead. A signature or
-    return type cannot be altered: the policy has to be detached first.
+    return type cannot be altered: the policy is recreated when
+    nothing references it, and refused when something does.
   #}
 
   {{ return(adapter.dispatch('update_masking_policy', 'dbt_drift')(resource_config)) }}
@@ -29,13 +30,16 @@
   {% set desired = dbt_drift.normalize_masking_policy(resource_config) %}
   {% if not dbt_drift.compare(current.signature, desired.signature)
         or not dbt_drift.compare(current.returns, desired.returns) %}
+    {% if not dbt_drift.policy_is_attached(fqn) %}
+      {{ return(dbt_drift.create_masking_policy(resource_config)) }}
+    {% endif %}
     {{ exceptions.raise_compiler_error(
       "masking_policy " ~ fqn ~ " changes its signature or return type ("
       ~ current.signature ~ " returns " ~ current.returns ~ " -> "
       ~ desired.signature ~ " returns " ~ desired.returns
       ~ "), which Snowflake cannot alter. Detach the policy from every column"
       ~ " (alter table ... modify column ... unset masking policy), then re-run"
-      ~ " so dbt-drift recreates it."
+      ~ " so dbt-drift can recreate it."
     ) }}
   {% endif %}
 

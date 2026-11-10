@@ -4,7 +4,8 @@
 
     Snowflake refuses CREATE OR REPLACE on a policy attached to any table or
     view (003531), so the body and comment are altered instead. A signature
-    cannot be altered: the policy has to be detached first.
+    cannot be altered: the policy is recreated when
+    nothing references it, and refused when something does.
   #}
 
   {{ return(adapter.dispatch('update_row_access_policy', 'dbt_drift')(resource_config)) }}
@@ -28,12 +29,15 @@
 
   {% set desired = dbt_drift.normalize_row_access_policy(resource_config) %}
   {% if not dbt_drift.compare(current.signature, desired.signature) %}
+    {% if not dbt_drift.policy_is_attached(fqn) %}
+      {{ return(dbt_drift.create_row_access_policy(resource_config)) }}
+    {% endif %}
     {{ exceptions.raise_compiler_error(
       "row_access_policy " ~ fqn ~ " changes its signature ("
       ~ current.signature ~ " -> " ~ desired.signature
       ~ "), which Snowflake cannot alter. Detach the policy from every table and"
       ~ " view (alter table ... drop row access policy ...), then re-run so"
-      ~ " dbt-drift recreates it."
+      ~ " dbt-drift can recreate it."
     ) }}
   {% endif %}
 
