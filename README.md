@@ -299,7 +299,7 @@ Create `macros/resources/masking_policy/create.sql`:
 
 {% macro snowflake__create_masking_policy(resource_config) %}
   {% set create_sql %}
-    create or replace masking policy {{ target.schema }}.{{ resource_config.name }}
+    create or alter masking policy {{ target.schema }}.{{ resource_config.name }}
       as ({{ resource_config.signature }})
       returns {{ resource_config.returns }}
       ->
@@ -319,7 +319,7 @@ Create `macros/resources/masking_policy/create.sql`:
 **Key points:**
 - Take `resource_config` dictionary as input
 - Execute DDL to create the resource
-- Use `CREATE OR REPLACE` when supported
+- Use `CREATE OR ALTER` when supported, since `CREATE OR REPLACE` fails on a policy that is in use
 - Log the action
 - Return success indicator
 
@@ -331,7 +331,7 @@ Create `macros/resources/masking_policy/update.sql`:
 {% macro update_masking_policy(resource_config) %}
   {#
     Update an existing masking policy
-    For most databases, CREATE OR REPLACE handles this
+    CREATE OR ALTER in create handles this
   #}
 
   {{ return(adapter.dispatch('update_masking_policy', 'dbt_drift')(resource_config)) }}
@@ -342,7 +342,7 @@ Create `macros/resources/masking_policy/update.sql`:
 {% endmacro %}
 
 {% macro snowflake__update_masking_policy(resource_config) %}
-  {# Snowflake uses CREATE OR REPLACE #}
+  {# Create uses CREATE OR ALTER #}
   {{ return(create_masking_policy(resource_config)) }}
 {% endmacro %}
 ```

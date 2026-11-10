@@ -1,12 +1,7 @@
 {% macro update_udf(resource_config) %}
   {#
-    Update an existing UDF in the warehouse
-
-    For most databases, this is the same as CREATE OR REPLACE
-    so we delegate to create_udf
-
-    Args:
-      resource_config: Dictionary containing UDF configuration
+    Update an existing UDF. Create uses CREATE OR ALTER, which keeps grants.
+    Snowflake refuses a language change (001521): drop the function first.
   #}
 
   {{ return(adapter.dispatch('update_udf', 'dbt_drift')(resource_config)) }}
@@ -21,10 +16,5 @@
 
 
 {% macro snowflake__update_udf(resource_config) %}
-  {#
-    Snowflake uses CREATE OR REPLACE, so update is the same as create
-  #}
-
   {{ return(dbt_drift.create_udf(resource_config)) }}
-
 {% endmacro %}

@@ -33,7 +33,7 @@
   {% set safe_comment = dbt_drift.stamped_comment(resource_config) | replace("'", "''") %}
 
   {% set create_sql %}
-    create or replace procedure {{ target.database }}.{{ target.schema }}.{{ resource_config.name }}(
+    create or alter procedure {{ target.database }}.{{ target.schema }}.{{ resource_config.name }}(
       {{ resource_config.arguments }}
     )
     returns {{ resource_config.returns }}
@@ -46,7 +46,7 @@
   {% endset %}
 
   {% do run_query(create_sql) %}
-  {{ log("Created stored_procedure: " ~ resource_config.name, info=true) }}
+  {{ log("Applied stored_procedure: " ~ resource_config.name, info=true) }}
 
   {{ return({'success': true, 'resource': resource_config.name}) }}
 

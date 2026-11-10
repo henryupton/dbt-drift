@@ -1,7 +1,7 @@
 {% macro update_stored_procedure(resource_config) %}
   {#
-    Update an existing stored procedure.
-    Snowflake supports CREATE OR REPLACE, so update delegates to create.
+    Update an existing stored procedure. Create uses CREATE OR ALTER, which
+    keeps grants.
   #}
 
   {{ return(adapter.dispatch('update_stored_procedure', 'dbt_drift')(resource_config)) }}
@@ -16,6 +16,5 @@
 
 
 {% macro snowflake__update_stored_procedure(resource_config) %}
-  {# Snowflake uses CREATE OR REPLACE, so update is the same as create #}
   {{ return(dbt_drift.create_stored_procedure(resource_config)) }}
 {% endmacro %}
