@@ -1,7 +1,7 @@
 {% macro update_file_format(resource_config) %}
   {#
-    Update an existing file format.
-    Snowflake supports CREATE OR REPLACE, so update delegates to create.
+    Update an existing file format. Create uses CREATE OR ALTER, which keeps
+    grants. Snowflake refuses a type change (002134): drop the format first.
   #}
 
   {{ return(adapter.dispatch('update_file_format', 'dbt_drift')(resource_config)) }}
@@ -16,6 +16,5 @@
 
 
 {% macro snowflake__update_file_format(resource_config) %}
-  {# Snowflake uses CREATE OR REPLACE, so update is the same as create #}
   {{ return(dbt_drift.create_file_format(resource_config)) }}
 {% endmacro %}

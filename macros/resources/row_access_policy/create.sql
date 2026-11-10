@@ -29,7 +29,7 @@
   {% set safe_comment = dbt_drift.stamped_comment(resource_config) | replace("'", "''") %}
 
   {% set create_sql %}
-    create or replace row access policy {{ target.database }}.{{ target.schema }}.{{ resource_config.name }}
+    create or alter row access policy {{ target.database }}.{{ target.schema }}.{{ resource_config.name }}
       as ({{ resource_config.signature }})
       returns boolean ->
       {{ resource_config.body }}
@@ -37,7 +37,7 @@
   {% endset %}
 
   {% do run_query(create_sql) %}
-  {{ log("Created row_access_policy: " ~ resource_config.name, info=true) }}
+  {{ log("Applied row_access_policy: " ~ resource_config.name, info=true) }}
 
   {{ return({'success': true, 'resource': resource_config.name}) }}
 

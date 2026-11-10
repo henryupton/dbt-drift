@@ -37,7 +37,7 @@
   {# The body is emitted at column 0: Python is indentation-sensitive, and an
      indented first line is a syntax error. #}
   {% set create_sql %}
-    create or replace function {{ target.database }}.{{ target.schema }}.{{ resource_config.name }}(
+    create or alter function {{ target.database }}.{{ target.schema }}.{{ resource_config.name }}(
       {{ resource_config.arguments }}
     )
     returns {{ resource_config.returns }}
@@ -59,7 +59,7 @@ $$
   {% endset %}
 
   {% do run_query(create_sql) %}
-  {{ log("Created UDF: " ~ resource_config.name, info=true) }}
+  {{ log("Applied UDF: " ~ resource_config.name, info=true) }}
 
   {{ return({'success': true, 'resource': resource_config.name}) }}
 

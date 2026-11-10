@@ -62,7 +62,7 @@
   {% endfor %}
 
   {% set create_sql %}
-    create or replace file format {{ target.database }}.{{ target.schema }}.{{ resource_config.name }}
+    create or alter file format {{ target.database }}.{{ target.schema }}.{{ resource_config.name }}
       type = {{ resource_config.type }}
       {% for line in option_lines %}
       {{ line }}
@@ -71,7 +71,7 @@
   {% endset %}
 
   {% do run_query(create_sql) %}
-  {{ log("Created file_format: " ~ resource_config.name, info=true) }}
+  {{ log("Applied file_format: " ~ resource_config.name, info=true) }}
 
   {{ return({'success': true, 'resource': resource_config.name}) }}
 
